@@ -39,14 +39,33 @@ def get_art_structure(soup, art):
         "Mouse": "мышь",
         "Rat": "крыса",
         "Dog": "собака",
+        "Chicken": "курица",
         "African green monkey": "зелёная мартышка",
-        "Recombinant fragment": "рекомбинантный фрагмент"
+        "Recombinant fragment": "рекомбинантный фрагмент",
+        "H": "человек",
+        "M": "мышь",
+        "R": "крыса",
+        "Mk": "обезьяна",
+        "Dg": "собака",
+        "Ch": "курица",
+        "Hm": "хомяк",
+        "Rb": "кролик",
+        "Sh": "овца",
+        "Pg": "свинья",
+        "Z": "Данио",
+        "X": "Ксенопус",
+        "C": "корова"
     }
     application_dict = {
         "WB": "вестерн-блоттинга",
+        "Dot blot": "дот-блоттинга",
         "IHC": "иммуногистохимии",
         "IHC-P": "иммуногистохимии на парафиновых срезах",
+        "IHC-Fr": "иммуногистохимии на криосрезах",
+        "IHC (PFA fixed)": "иммуногистохимии на срезах, фиксированных параформальдегидом",
+        "IHC-FrFl": "иммуногистохимии на свободно плавающих срезах",
         "IF/ICC": "иммунофлуоресцентного/иммуноцитохимического анализа",
+        "ICC": "иммуноцитохимического анализа",
         "ICC/IF": "иммунофлуоресцентного/иммуноцитохимического анализа",
         "IF": "иммунофлуоресцентного анализа",
         "IP": "иммунопреципитации",
@@ -56,6 +75,7 @@ def get_art_structure(soup, art):
         "Flow Cyt": "проточной цитометрии",
         "Flow Cyt (Intra)": "проточной цитометрии (Intra)",
         "ELISA": "ИФА",
+        "Indirect ELISA": "непрямой ИФА",
         "MeDIP": "иммунопреципитации метилированной ДНК",
         "Nucleotide Array": "исследования нуклеотидных последовательностей",
         "DB": "дот-блоттинга",
@@ -72,47 +92,49 @@ def get_art_structure(soup, art):
         title = ""
 
     volume_cont = soup.find("div", class_="size-price-placeholder")
+    volumes = []
+    prices = []
     if volume_cont:
-        volumes = []
-        prices = []
-        if volume_cont:
-            volumes.append(volume_cont.get_text().strip().replace("µ", "u"))
-            time.sleep(3)
-            price_cont = soup.find("span", class_="price-holder")
-            prices.append(price_cont.get_text().strip())
-            # print(prices)
-        else:
-            volume_radios = soup.select("span.product-size > span:nth-of-type(1)")
-            volumes = [vol.get_text(" ").strip().replace("µ", "u") for vol in volume_radios]
-            time.sleep(3)
-            price_radios = soup.find_all("span", class_="price")
-            prices = [price.get_text(" ").strip() for price in price_radios]
-            # print(prices)
+        volumes.append(volume_cont.get_text().strip().replace("µ", "u"))
+        time.sleep(3)
+        price_cont = soup.find("span", class_="price-holder")
+        prices.append(price_cont.get_text().strip())
+        # print(prices)
     else:
-        print('No volume, no price')
-        prices = []
-        volumes = []
+        volume_radios = soup.select("span.product-size > span:nth-of-type(1)")
+        volumes = [vol.get_text(" ").strip().replace("µ", "u") for vol in volume_radios]
+        time.sleep(3)
+        price_radios = soup.find_all("span", class_="price")
+        prices = [price.get_text(" ").strip() for price in price_radios]
+        # print(prices)
+        # print('No volume, no price')
+
 
     descr_h3 = soup.find("h3", string="Description")
+    descr = ""
+    host = ""
+    clonality = ""
+    antigen = ""
     if descr_h3:
-        descr = descr_h3.find_next_sibling("div", class_="value").get_text()
+        descr = descr_h3.find_next_sibling("div", class_="value").get_text().strip()
         host = descr[:descr.find(" ")]
         clonality = descr.split(" ")[1]
         antigen = descr[descr.find(" to ") + 4:]
     else:
-        print('No descr, host, clonality, antigen')
-        descr = ""
-        host = ""
-        clonality = ""
-        antigen = ""
+        host_sp_con = soup.find("h3", string="Host species")
+        if host_sp_con:
+            host = host_sp_con.find_next_sibling("div", class_="value").get_text().strip()
+        else:
+            print('No descr, host, clonality, antigen')
 
     if clonality != "polyclonal":
         clone_h3 = soup.find("h3", string="Clone number")
-        clone = clone_h3.find_next_sibling("div", class_="value").get_text()
+        if clone_h3:
+            clone = clone_h3.find_next_sibling("div", class_="value").get_text().strip()
+        else:
+            clone = ""
     else:
         clone = ""
-        print('No clone num')
-
 
     form_h3 = soup.find("h3", string="Form")
     if form_h3:
@@ -125,6 +147,7 @@ def get_art_structure(soup, art):
     reactivity_cont = soup.find("section", id="key-features")
     reactivity = ""
     reactivity_ru = ""
+    target_sp_con = soup.find("h3", string="Target species")
     if reactivity_cont:
         reactivity_li = reactivity_cont.find_all("li")
         for li in reactivity_li:
@@ -132,6 +155,9 @@ def get_art_structure(soup, art):
                 reactivity_full = li.get_text().strip()
                 reactivity = reactivity_full[14:]
                 # print(reactivity)
+            elif target_sp_con:
+                reactivity = target_sp_con.find_next_sibling("div", class_="value").get_text().strip()
+
         reactivity_ru = ", ".join([reactivity_dict.get(w.strip(), w.strip()) for w in reactivity.split(",")])
     else:
         print('No reactivity')
@@ -150,12 +176,17 @@ def get_art_structure(soup, art):
         print('No buffer')
         storage_buff = ""
 
-    try:
-        conc_h3 = soup.find("div", string="Concentration")
-        conc_list = conc_h3.find_next_sibling("div", class_="value").find("ul").find_all("li")
-        concs = [li.get_text().strip() for li in conc_list]
-        conc = "\n".join(concs)
-    except:
+
+    conc_h3 = soup.find("div", string="Concentration")
+    if conc_h3:
+        conc_list_con = conc_h3.find_next_sibling("div", class_="value").find("ul")
+        if conc_list_con:
+            conc_list = conc_list_con.find_all("li")
+            concs = [li.get_text().strip() for li in conc_list]
+            conc = "\n".join(concs)
+        else:
+            conc = ""
+    else:
         print('No conc')
         conc = ""
 
@@ -180,11 +211,18 @@ def get_art_structure(soup, art):
             dilus = "\n".join(tbl_diluts)
         if len(tbl_names) == len(tbl_diluts):
             for i in range(len(tbl_names)):
-                dilus_short.append(tbl_names[i] + " " + tbl_diluts[i][:tbl_diluts[i].find(".")])
-                if tbl_names[i] == "IHC" or tbl_names[i]=="IHC-P":
-                    ihc_dil = tbl_diluts[i][:tbl_diluts[i].find(".")]
-        print(dilus_short)
-        print(ihc_dil)
+                if not tbl_diluts[i].startswith("Use a"):
+                    dilus_short.append(tbl_names[i] + " " + tbl_diluts[i][:tbl_diluts[i].find(".")])
+                    if tbl_names[i] == "IHC" or tbl_names[i]=="IHC-P":
+                        ihc_dil = tbl_diluts[i][:tbl_diluts[i].find(".")]
+                else:
+                    dilus_short.append(tbl_names[i])
+            if len(ihc_dil) > 0:
+                application_dict["IHC"] = "иммуногистохимии (рекомендуемое разведение " + ihc_dil + ")"
+                application_dict["IHC-P"] = "иммуногистохимии на парафиновых срезах (рекомендуемое разведение " + ihc_dil + ")"
+
+        # print(dilus_short)
+        # print(ihc_dil)
         appls_ru = ", ".join([application_dict.get(w.strip(), w.strip()) for w in appls.split("\n")])
     else:
         print('No app-dil')
@@ -195,6 +233,12 @@ def get_art_structure(soup, art):
         text = "\n".join(dilus_short) + "\n" + reactivity
     else:
         text = "\n".join(dilus) + "\n" + reactivity
+
+    conjug_con = soup.find("h3", string="Conjugation")
+    if conjug_con:
+        conjug = conjug_con.find_next_sibling("div", class_="value").get_text().strip()
+    else:
+        conjug = ""
 
     dict_art_list = []
     for i in range(0, len(volumes)):
@@ -209,6 +253,7 @@ def get_art_structure(soup, art):
             "Text": text,
             "Applications_ru": appls_ru,
             "Reactivity_ru": reactivity_ru,
+            "Conjugation": conjug,
             "Title": title[:title.rfind("(")].strip(),
             "IHC dilution": ihc_dil,
             "Applications": appls,
@@ -249,6 +294,7 @@ options = webdriver.ChromeOptions()
 options.add_argument("--disable-extensions")
 # options.add_argument("--disable-gpu")
 options.add_argument("--headless")
+options.add_argument("--window-size=1920,1080")
 options.add_argument("--ignore-certificate-errors-spki-list")
 options.add_argument("--ignore-ssl-errors")
 options.add_argument("--disable-infobars")
